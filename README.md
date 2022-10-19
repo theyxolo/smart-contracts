@@ -1,18 +1,25 @@
 # They Xolo - Contracts
 
-This project demonstrates a basic Hardhat use case. It comes with a sample contract, a test for that contract, and a script that deploys that contract.
+This project contains the smart contracts for the They Xolo project.
 
-Try running some of the following tasks:
+## Contracts
 
-```shell
-npx hardhat test
+### ERC721X
+
+Augmented version of the ERC721A contract.
+
+### TheyXolo
+
+The main contract for the They Xolo NFT project.
+
+## Installation
+
+```bash
+pnpm install
 ```
 
-```shell
-REPORT_GAS=true npx hardhat test
-```
+## Scripts
 
-```shell
-npx hardhat node
-npx hardhat run scripts/deploy.ts
+```bash
+npm test
 ```
