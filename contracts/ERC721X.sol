@@ -304,12 +304,12 @@ contract ERC721X is ERC721A, Ownable, ReentrancyGuard, ERC2981 {
 	/**
 	 * @notice Withdraw all current funds to the contract owner address
 	 * @notice Only callable by owner
-	 * @dev `transfer` and `send` assume constant gas prices. This function
-	 * is onlyOwner, so we accept the reentrancy risk that `.call.value` carries.
+	 * @dev Withdraw all current funds to the contract owner address
 	 */
 	function withdraw() external onlyOwner {
 		//// INTERACTIONS ////
-		payable(owner()).transfer(address(this).balance);
+		(bool os, ) = payable(owner()).call{ value: address(this).balance }('');
+		require(os, 'ERC721X: withdraw failed');
 	}
 
 	/*
