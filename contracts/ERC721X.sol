@@ -64,10 +64,6 @@ contract ERC721X is ERC721A, Ownable, ReentrancyGuard, ERC2981 {
 		string memory _tokenURIPrefix,
 		string memory _contractURI
 	) ERC721A(_name, _symbol) {
-		//// CHECKS ////
-		require(_maxTokenSupply > 0, 'ERC721X: maxTokenSupply invalid');
-		require(_maxPerTx > 0, 'ERC721X: maxPerTx invalid');
-
 		// Add 1 to the variables to save in one extra logic operator (greater than vs greater or equal)
 		maxTokenSupply = _maxTokenSupply + 1;
 
@@ -93,7 +89,7 @@ contract ERC721X is ERC721A, Ownable, ReentrancyGuard, ERC2981 {
 	 * @notice Ensure function cannot be called outside of a given mint phase
 	 * @param _mintPhase Correct mint phase for function to execute
 	 */
-	modifier inMintPhase(MintPhase _mintPhase) {
+	modifier phaseCompliance(MintPhase _mintPhase) {
 		//// CHECKS ////
 		require(mintPhase == _mintPhase, 'ERC721X: mintPhase invalid');
 
@@ -104,7 +100,7 @@ contract ERC721X is ERC721A, Ownable, ReentrancyGuard, ERC2981 {
 	 * @notice Ensure mint complies to amount, maxPerTx and maxTokenSupply restrictions
 	 * @param _amount Amount of tokens to mint
 	 */
-	modifier verifyMint(uint256 _amount) {
+	modifier amountCompliance(uint256 _amount) {
 		require(_amount > 0, 'ERC721X: amount invalid');
 		require(_amount < maxPerTx, 'ERC721X: maxPerTx exceeded');
 
@@ -132,8 +128,8 @@ contract ERC721X is ERC721A, Ownable, ReentrancyGuard, ERC2981 {
 		external
 		payable
 		nonReentrant
-		inMintPhase(MintPhase.Public)
-		verifyMint(_amount)
+		phaseCompliance(MintPhase.Public)
+		amountCompliance(_amount)
 	{
 		//// CHECKS ////
 		require(msg.value == costPerPublicMint * _amount, 'ERC721X: value invalid');
@@ -151,8 +147,8 @@ contract ERC721X is ERC721A, Ownable, ReentrancyGuard, ERC2981 {
 		external
 		payable
 		nonReentrant
-		inMintPhase(MintPhase.Private)
-		verifyMint(_amount)
+		phaseCompliance(MintPhase.Private)
+		amountCompliance(_amount)
 	{
 		bytes32 leaf = keccak256(abi.encodePacked(msg.sender));
 
@@ -231,12 +227,6 @@ contract ERC721X is ERC721A, Ownable, ReentrancyGuard, ERC2981 {
 	 * @param _tokenURIPrefix New tokenURIPrefix
 	 */
 	function setBaseTokenURI(string calldata _tokenURIPrefix) external onlyOwner {
-		//// CHECKS ////
-		require(
-			bytes(_tokenURIPrefix).length > 0,
-			'ERC721X: tokenURIPrefix invalid'
-		);
-
 		//// INTERACTIONS ////
 		tokenURIPrefix = _tokenURIPrefix;
 	}
@@ -247,9 +237,6 @@ contract ERC721X is ERC721A, Ownable, ReentrancyGuard, ERC2981 {
 	 * @param _contractURI New collectionURI
 	 */
 	function setContractURI(string calldata _contractURI) external onlyOwner {
-		//// CHECKS ////
-		require(bytes(_contractURI).length > 0, 'ERC721X: contractURI invalid');
-
 		//// INTERACTIONS ////
 		contractURI = _contractURI;
 	}
@@ -357,21 +344,5 @@ contract ERC721X is ERC721A, Ownable, ReentrancyGuard, ERC2981 {
 			interfaceId == type(IERC721).interfaceId ||
 			interfaceId == type(IERC721Metadata).interfaceId ||
 			super.supportsInterface(interfaceId);
-	}
-
-	/**
-	 * @notice Prevent accidental ETH transfer
-	 */
-	fallback() external payable {
-		//// CHECKS ////
-		require(false, 'ERC721X: not implemented');
-	}
-
-	/**
-	 * @notice Prevent accidental ETH transfer
-	 */
-	receive() external payable {
-		//// CHECKS ////
-		require(false, 'ERC721X: not implemented');
 	}
 }
