@@ -36,7 +36,7 @@ interface IERC20 {
 	function balanceOf(address account) external view returns (uint256);
 }
 
-contract StakeXolo is
+contract StakeXolo2 is
 	Initializable,
 	IERC721ReceiverUpgradeable,
 	PausableUpgradeable,
@@ -90,6 +90,14 @@ contract StakeXolo is
 			tokenIdToUser[_tokenIds[i]] = msg.sender;
 			userStakedTokens[msg.sender].push(_tokenIds[i]);
 		}
+	}
+
+	function setRewardTiers(uint256[] memory _rewardTiers) external onlyOwner {
+		rewardTiers = _rewardTiers;
+	}
+
+	function setDefaultTokenRate(uint256 _defaultTokenRate) external onlyOwner {
+		defaultTokenRate = _defaultTokenRate;
 	}
 
 	function unstake(uint256[] memory tokenIds) external nonReentrant {
