@@ -9,12 +9,14 @@ import '@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol';
 
 contract Tonim is ERC20Upgradeable, OwnableUpgradeable {
 	uint256 constant initialSupply = 250_000 * (10**18);
-	uint256 public constant maxSupply = 20_000_000 * (10**18);
+	uint256 public constant maxSupply = 50_000_000 * (10**18);
 
 	mapping(address => bool) approvedToMint;
 
 	function initialize() public initializer {
 		__ERC20_init('TONIM', 'TNM');
+		__Ownable_init();
+
 		_mint(_msgSender(), initialSupply);
 	}
 
