@@ -13,16 +13,10 @@ import '@openzeppelin/contracts-upgradeable/token/ERC721/IERC721ReceiverUpgradea
 import '@openzeppelin/contracts-upgradeable/security/PausableUpgradeable.sol';
 import '@openzeppelin/contracts-upgradeable/security/ReentrancyGuardUpgradeable.sol';
 
-import '@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol';
-
 interface IERC721 {
 	function ownerOf(uint256 tokenId) external view returns (address);
 
-	function transferFrom(
-		address from,
-		address to,
-		uint256 tokenId
-	) external;
+	function transferFrom(address from, address to, uint256 tokenId) external;
 }
 
 // ERC20
@@ -36,8 +30,7 @@ interface IERC20 {
 	function balanceOf(address account) external view returns (uint256);
 }
 
-contract StakeXolo2 is
-	Initializable,
+contract StakeXolo is
 	IERC721ReceiverUpgradeable,
 	PausableUpgradeable,
 	ReentrancyGuardUpgradeable,
@@ -52,15 +45,14 @@ contract StakeXolo2 is
 	uint256 public defaultTokenRate;
 	uint256[] public rewardTiers;
 
-	mapping(address => bool) public allowedToMint;
 	mapping(uint256 => mapping(address => uint256)) private tokenIdToStartTime;
 	mapping(address => uint256[]) userStakedTokens;
 	mapping(uint256 => address) tokenIdToUser;
 
-	function initialize(address theyXoloAddress_, address tominAddress_)
-		public
-		initializer
-	{
+	function initialize(
+		address theyXoloAddress_,
+		address tominAddress_
+	) public initializer {
 		theyXolo = IERC721(theyXoloAddress_);
 		tomin = ITominToken(tominAddress_);
 
@@ -68,11 +60,9 @@ contract StakeXolo2 is
 		rewardTiers = [1, 2, 10, 20, 40];
 	}
 
-	function stake(uint256[] memory tokenIds)
-		external
-		nonReentrant
-		whenNotPaused
-	{
+	function stake(
+		uint256[] memory tokenIds
+	) external nonReentrant whenNotPaused {
 		uint256[] memory _tokenIds = new uint256[](tokenIds.length);
 
 		_tokenIds = tokenIds;
@@ -90,14 +80,6 @@ contract StakeXolo2 is
 			tokenIdToUser[_tokenIds[i]] = msg.sender;
 			userStakedTokens[msg.sender].push(_tokenIds[i]);
 		}
-	}
-
-	function setRewardTiers(uint256[] memory _rewardTiers) external onlyOwner {
-		rewardTiers = _rewardTiers;
-	}
-
-	function setDefaultTokenRate(uint256 _defaultTokenRate) external onlyOwner {
-		defaultTokenRate = _defaultTokenRate;
 	}
 
 	function unstake(uint256[] memory tokenIds) external nonReentrant {
@@ -134,7 +116,7 @@ contract StakeXolo2 is
 					block.timestamp -
 					tokenIdToStartTime[_tokenIds[i]][msg.sender];
 
-				reward = ((rate * 10**18) * current) / 86400;
+				reward = ((rate * 10 ** 18) * current) / 86400;
 
 				tomin.mint(msg.sender, reward);
 				tokenIdToStartTime[_tokenIds[i]][msg.sender] = 0;
@@ -158,7 +140,7 @@ contract StakeXolo2 is
 			if (tokenIdToStartTime[tokenIds[i]][msg.sender] > 0) {
 				uint256 rate = defaultTokenRate;
 				current = block.timestamp - tokenIdToStartTime[tokenIds[i]][msg.sender];
-				reward = ((rate * 10**18) * current) / 86400;
+				reward = ((rate * 10 ** 18) * current) / 86400;
 				rewardBalance += reward;
 				tokenIdToStartTime[tokenIds[i]][msg.sender] = block.timestamp;
 			}
@@ -174,7 +156,7 @@ contract StakeXolo2 is
 		if (tokenIdToStartTime[tokenId][msg.sender] > 0) {
 			uint256 rate = defaultTokenRate;
 			current = block.timestamp - tokenIdToStartTime[tokenId][msg.sender];
-			reward = ((rate * 10**18) * current) / 86400;
+			reward = ((rate * 10 ** 18) * current) / 86400;
 
 			return reward;
 		}
@@ -196,7 +178,7 @@ contract StakeXolo2 is
 				uint256 rate = defaultTokenRate;
 
 				current = block.timestamp - tokenIdToStartTime[tokenIds[i]][account];
-				reward = ((rate * 10**18) * current) / 86400;
+				reward = ((rate * 10 ** 18) * current) / 86400;
 				rewardBalance += reward;
 			}
 		}
@@ -209,8 +191,11 @@ contract StakeXolo2 is
 	}
 
 	function withdrawErc20(address _tokenAddress, address to) public onlyOwner {
-		ierc20 = IERC20(_tokenAddress);
-		ierc20.transfer(to, ierc20.balanceOf(address(this)));
+		IERC20(_tokenAddress).transfer(to, ierc20.balanceOf(address(this)));
+	}
+
+	function setDefaultTokenRate(uint256 _defaultTokenRate) public onlyOwner {
+		defaultTokenRate = _defaultTokenRate;
 	}
 
 	function onERC721Received(

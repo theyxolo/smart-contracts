@@ -21,9 +21,11 @@ const config: HardhatUserConfig = {
 	},
 	networks: {
 		goerli: {
-			url: `https://goerli.infura.io/v3/${PROJECT_ID}`,
+			// url: `https://goerli.infura.io/v3/${PROJECT_ID}`,
+			url: `https://fluent-powerful-bird.ethereum-goerli.discover.quiknode.pro/${PROJECT_ID}/`,
 			// eslint-disable-next-line @typescript-eslint/no-non-null-assertion
 			accounts: [PRIVATE_KEY!],
+			gas: 3,
 		},
 	},
 	etherscan: {

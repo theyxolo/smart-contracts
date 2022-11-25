@@ -5,33 +5,25 @@ pragma solidity ^0.8.17;
 /// @author cesargdm.eth
 
 import '@openzeppelin/contracts-upgradeable/token/ERC20/ERC20Upgradeable.sol';
-import '@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol';
+import '@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol';
 
-contract Tonim is ERC20Upgradeable, OwnableUpgradeable {
-	uint256 constant initialSupply = 250_000 * (10**18);
-	uint256 public constant maxSupply = 50_000_000 * (10**18);
+contract Tonim is ERC20Upgradeable, AccessControlUpgradeable {
+	uint256 constant initialSupply = 250_000 * (10 ** 18);
+	uint256 public constant maxSupply = 100_000_000 * (10 ** 18);
 
-	mapping(address => bool) approvedToMint;
+	bytes32 public constant MINTER_ROLE = keccak256('MINTER_ROLE');
 
 	function initialize() public initializer {
 		__ERC20_init('TONIM', 'TNM');
-		__Ownable_init();
+		__AccessControl_init();
 
-		_mint(_msgSender(), initialSupply);
+		_grantRole(DEFAULT_ADMIN_ROLE, _msgSender());
 	}
 
-	function setApprovedToMint(address _address) external onlyOwner {
-		approvedToMint[_address] = true;
-	}
-
-	function removeApprovedToMint(address _address) external onlyOwner {
-		// delete approvedToMint[_address];
-		approvedToMint[_address] = false;
-	}
-
-	function mint(address _address, uint256 _amount) external {
-		require(approvedToMint[msg.sender] == true, 'TNM: not approved to mint');
-
+	function mint(
+		address _address,
+		uint256 _amount
+	) external onlyRole(MINTER_ROLE) {
 		require(totalSupply() + _amount <= maxSupply, 'TNM: maxSupply reached');
 
 		_mint(_address, _amount);
