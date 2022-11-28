@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-non-null-assertion */
 import { HardhatUserConfig } from 'hardhat/config'
 import '@nomicfoundation/hardhat-toolbox'
 import '@nomicfoundation/hardhat-chai-matchers'
@@ -6,7 +7,15 @@ import dotenv from 'dotenv'
 
 dotenv.config()
 
-const { PROJECT_ID, ETHERSCAN_API_KEY, PRIVATE_KEY } = process.env
+const {
+	PROJECT_ID,
+	PRIVATE_KEY,
+	ARBISCAN_API_KEY,
+	SNOWTRACE_API_KEY,
+	ETHERSCAN_API_KEY,
+	POLYGONSCAN_API_KEY,
+	OPTIMISM_ETHERSCAN_API_KEY,
+} = process.env
 
 const config: HardhatUserConfig = {
 	defaultNetwork: 'goerli',
@@ -21,15 +30,34 @@ const config: HardhatUserConfig = {
 	},
 	networks: {
 		goerli: {
-			// url: `https://goerli.infura.io/v3/${PROJECT_ID}`,
-			url: `https://fluent-powerful-bird.ethereum-goerli.discover.quiknode.pro/${PROJECT_ID}/`,
-			// eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+			url: `https://goerli.infura.io/v3/${PROJECT_ID}`,
 			accounts: [PRIVATE_KEY!],
-			gas: 3,
+		},
+		polygonMumbai: {
+			url: `https://polygon-mumbai.infura.io/v3/${PROJECT_ID}`,
+			accounts: [PRIVATE_KEY!],
+		},
+		optimisticGoerli: {
+			url: `https://optimism-goerli.infura.io/v3/${PROJECT_ID}`,
+			accounts: [PRIVATE_KEY!],
+		},
+		arbitrumGoerli: {
+			url: `https://arbitrum-goerli.infura.io/v3/${PROJECT_ID}`,
+			accounts: [PRIVATE_KEY!],
+		},
+		avalancheFujiTestnet: {
+			url: `https://avalanche-fuji.infura.io/v3/${PROJECT_ID}`,
+			accounts: [PRIVATE_KEY!],
 		},
 	},
 	etherscan: {
-		apiKey: ETHERSCAN_API_KEY,
+		apiKey: {
+			goerli: ETHERSCAN_API_KEY!,
+			arbitrumGoerli: ARBISCAN_API_KEY!,
+			polygonMumbai: POLYGONSCAN_API_KEY!,
+			avalancheFujiTestnet: SNOWTRACE_API_KEY!,
+			optimisticGoerli: OPTIMISM_ETHERSCAN_API_KEY!,
+		},
 	},
 }
 

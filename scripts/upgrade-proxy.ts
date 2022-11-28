@@ -1,11 +1,11 @@
 // scripts/upgrade-box.js
 import { ethers, upgrades } from 'hardhat'
 
-const PROXY_ADDRESS = '0x39eB8a67aE91440BB3e7487fFD309f61B1271Df5'
+const PROXY_ADDRESS = '0xF79E44edA0e01690169A767aFCb81467c68D3536'
 
 async function main() {
 	console.log('Getting factory...')
-	const ContractFactory = await ethers.getContractFactory('StakeXolo2')
+	const ContractFactory = await ethers.getContractFactory('Tonim2')
 
 	console.log('Upgrading proxy...')
 	const proxy = await upgrades.upgradeProxy(PROXY_ADDRESS, ContractFactory, {

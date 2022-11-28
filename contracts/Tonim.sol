@@ -14,10 +14,12 @@ contract Tonim is ERC20Upgradeable, AccessControlUpgradeable {
 	bytes32 public constant MINTER_ROLE = keccak256('MINTER_ROLE');
 
 	function initialize() public initializer {
-		__ERC20_init('TONIM', 'TNM');
+		__ERC20_init('Tonim', 'TNM');
 		__AccessControl_init();
 
 		_grantRole(DEFAULT_ADMIN_ROLE, _msgSender());
+
+		_mint(_msgSender(), initialSupply);
 	}
 
 	function mint(
