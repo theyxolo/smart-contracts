@@ -3,8 +3,8 @@ import { ethers } from 'hardhat'
 
 async function deployContract() {
 	console.log(`Getting factory`)
-	const Contract = await ethers.getContractFactory('Santa')
-	const contract = await Contract.deploy('1669620442000')
+	const Contract = await ethers.getContractFactory('SecretSanta')
+	const contract = await Contract.deploy('1669670400')
 
 	console.log(`Deploying contract`)
 	await contract.deployed()
