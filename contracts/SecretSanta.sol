@@ -1,6 +1,9 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.17;
 
+/// @title SecretSanta
+/// @author cesargdm.eth
+
 import '@openzeppelin/contracts/token/ERC721/IERC721.sol';
 import '@openzeppelin/contracts/token/ERC721/IERC721Receiver.sol';
 
@@ -9,6 +12,10 @@ import '@openzeppelin/contracts/access/Ownable.sol';
 import '@openzeppelin/contracts/security/Pausable.sol';
 import '@openzeppelin/contracts/security/ReentrancyGuard.sol';
 
+/**
+ * @dev This implementation uses Ownable, a Multisig wallet would be the best
+ * owner of this contract or some kind of governance system.
+ */
 contract SecretSanta is IERC721Receiver, Ownable, ReentrancyGuard, Pausable {
 	struct Gift {
 		address participant;
@@ -16,16 +23,15 @@ contract SecretSanta is IERC721Receiver, Ownable, ReentrancyGuard, Pausable {
 		uint256 itemId;
 	}
 
-	// 1671926400
 	uint256 public receiveTimestamp;
 
-	Gift[] public allPresents;
+	Gift[] private availableGifts;
 
-	mapping(address => bool) allParticipants;
+	mapping(address => bool) private allParticipants;
 	/**
 	 * Track participants that have already claimed their gift
 	 */
-	mapping(address => bool) participantsWithPresent;
+	mapping(address => bool) private participantsReceived;
 
 	/**
 	 * @dev Better than allowlisting wallets, we allowlist collections
@@ -33,8 +39,8 @@ contract SecretSanta is IERC721Receiver, Ownable, ReentrancyGuard, Pausable {
 	 */
 	mapping(address => bool) public allowedCollections;
 
-	constructor(uint256 _claimTimestamp) {
-		receiveTimestamp = _claimTimestamp;
+	constructor(uint256 _receiveTimestamp) {
+		receiveTimestamp = _receiveTimestamp;
 	}
 
 	/**
@@ -58,7 +64,7 @@ contract SecretSanta is IERC721Receiver, Ownable, ReentrancyGuard, Pausable {
 			'SecretSanta: this collection is not allowed'
 		);
 
-		allPresents.push(Gift(_from, _msgSender(), _tokenId));
+		availableGifts.push(Gift(_from, _msgSender(), _tokenId));
 		allParticipants[_from] = true;
 
 		return this.onERC721Received.selector;
@@ -79,16 +85,16 @@ contract SecretSanta is IERC721Receiver, Ownable, ReentrancyGuard, Pausable {
 			'SecretSanta: receive not yet available'
 		);
 		require(
-			!participantsWithPresent[_msgSender()],
+			!participantsReceived[_msgSender()],
 			'SecretSanta: you have already claimed your gift'
 		);
 		require(
 			allParticipants[_msgSender()],
 			'SecretSanta: you are not a participant'
 		);
-		require(this.allGiftsCount() > 0, 'SecretSanta: no presents available');
+		require(this.giftsCount() > 0, 'SecretSanta: no presents available');
 
-		Gift memory gift = allPresents[this.allGiftsCount() - 1];
+		Gift memory gift = availableGifts[this.giftsCount() - 1];
 
 		require(
 			gift.participant != _msgSender(),
@@ -101,9 +107,9 @@ contract SecretSanta is IERC721Receiver, Ownable, ReentrancyGuard, Pausable {
 			gift.itemId
 		);
 
-		allPresents.pop();
+		availableGifts.pop();
 
-		participantsWithPresent[_msgSender()] = true;
+		participantsReceived[_msgSender()] = true;
 	}
 
 	/*
@@ -114,7 +120,7 @@ contract SecretSanta is IERC721Receiver, Ownable, ReentrancyGuard, Pausable {
 
 	/**
 	 * @dev Intended to be used when we face an issue with the regular
-	 * process of receiving a gift
+	 * process of receiving a gift. Only to be used as the last resort.
 	 */
 	function transferPresent(
 		address _collection,
@@ -133,7 +139,7 @@ contract SecretSanta is IERC721Receiver, Ownable, ReentrancyGuard, Pausable {
 	/**
 	 * @dev Set the timestamp when participants can start receiving their gifts
 	 */
-	function setClaimTimestamp(uint256 _timestamp) external onlyOwner {
+	function setReceiveTimestamp(uint256 _timestamp) external onlyOwner {
 		receiveTimestamp = _timestamp;
 	}
 
@@ -148,7 +154,17 @@ contract SecretSanta is IERC721Receiver, Ownable, ReentrancyGuard, Pausable {
 		return allParticipants[_address] || false;
 	}
 
-	function allGiftsCount() external view returns (uint256) {
-		return allPresents.length;
+	function giftsCount() external view returns (uint256) {
+		return availableGifts.length;
+	}
+
+	function gifts() external view returns (Gift[] memory) {
+		Gift[] memory _gifts = new Gift[](this.giftsCount());
+
+		for (uint256 i = 0; i < this.giftsCount(); i++) {
+			_gifts[i] = availableGifts[i];
+		}
+
+		return _gifts;
 	}
 }
