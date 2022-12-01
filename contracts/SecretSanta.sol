@@ -103,12 +103,12 @@ contract SecretSanta is IERC721Receiver, Ownable, ReentrancyGuard, Pausable {
 	 */
 	function receiveGift() external nonReentrant whenNotPaused {
 		require(
-			block.timestamp > receiveTimestamp,
-			'SecretSanta: receive not yet available'
-		);
-		require(
 			participations[_msgSender()] == Participation.Sent,
 			"SecretSanta: you haven't Sent a gift"
+		);
+		require(
+			block.timestamp > receiveTimestamp,
+			'SecretSanta: receive not yet available'
 		);
 		require(receivedGifts.length > 0, 'SecretSanta: no gifts available');
 
