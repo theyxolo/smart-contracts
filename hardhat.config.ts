@@ -29,6 +29,7 @@ const config: HardhatUserConfig = {
 		},
 	},
 	networks: {
+		hardhat: {},
 		goerli: {
 			url: `https://goerli.infura.io/v3/${PROJECT_ID}`,
 			accounts: [PRIVATE_KEY!],
