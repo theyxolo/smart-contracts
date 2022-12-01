@@ -12,38 +12,51 @@ import '@openzeppelin/contracts/access/Ownable.sol';
 import '@openzeppelin/contracts/security/Pausable.sol';
 import '@openzeppelin/contracts/security/ReentrancyGuard.sol';
 
+struct Gift {
+	address participant;
+	address collection;
+	uint256 itemId;
+}
+
+enum Participation {
+	Sent,
+	Received
+}
+
 /**
  * @dev This implementation uses Ownable, a Multisig wallet would be the best
  * owner of this contract or some kind of governance system.
  */
 contract SecretSanta is IERC721Receiver, Ownable, ReentrancyGuard, Pausable {
-	struct Gift {
-		address participant;
-		address collection;
-		uint256 itemId;
-	}
-
+	/**
+	 * @dev Timestamp to enable receiving gifts
+	 */
 	uint256 public receiveTimestamp;
 
-	Gift[] private availableGifts;
-
-	mapping(address => bool) private allParticipants;
 	/**
-	 * Track participants that have already claimed their gift
+	 * @dev Gifts received by participants
 	 */
-	mapping(address => bool) private participantsReceived;
+	Gift[] private receivedGifts;
+
+	/**
+	 * @dev Address to participation status mapping
+	 */
+	mapping(address => Participation) private participations;
 
 	/**
 	 * @dev Better than allowlisting wallets, we allowlist collections
 	 * this can be used to make exchanges between small and large communities
 	 */
-	mapping(address => bool) public allowedCollections;
+	mapping(address => bool) public approvedCollections;
 
-	constructor(uint256 _receiveTimestamp, address[] memory _allowedCollections) {
+	constructor(
+		uint256 _receiveTimestamp,
+		address[] memory _approvedCollections
+	) {
 		receiveTimestamp = _receiveTimestamp;
 
-		for (uint256 i = 0; i < _allowedCollections.length; i++) {
-			allowedCollections[_allowedCollections[i]] = true;
+		for (uint256 i = 0; i < _approvedCollections.length; i++) {
+			approvedCollections[_approvedCollections[i]] = true;
 		}
 	}
 
@@ -51,6 +64,8 @@ contract SecretSanta is IERC721Receiver, Ownable, ReentrancyGuard, Pausable {
 	 * @dev This doesnt prevent malicious collections from transfering a token,
 	 * but won't not take into account any tokens that are not allowed
 	 * @notice Don't transfer tokens if your collection is not allowed
+	 * @param _from The address which previously owned the token
+	 * @param _tokenId The token identifier which is being transferred
 	 */
 	function onERC721Received(
 		address,
@@ -58,18 +73,21 @@ contract SecretSanta is IERC721Receiver, Ownable, ReentrancyGuard, Pausable {
 		uint256 _tokenId,
 		bytes calldata
 	) external whenNotPaused returns (bytes4) {
-		require(!allParticipants[_from], 'SecretSanta: you already sent a gift');
+		require(
+			participations[_from] != Participation.Sent,
+			'SecretSanta: you already Sent a gift'
+		);
 		require(
 			block.timestamp <= receiveTimestamp,
 			'SecretSanta: you can no longer send a gift'
 		);
 		require(
-			allowedCollections[_msgSender()],
+			approvedCollections[_msgSender()],
 			'SecretSanta: this collection is not allowed'
 		);
 
-		availableGifts.push(Gift(_from, _msgSender(), _tokenId));
-		allParticipants[_from] = true;
+		receivedGifts.push(Gift(_from, _msgSender(), _tokenId));
+		participations[_from] = Participation.Sent;
 
 		return this.onERC721Received.selector;
 	}
@@ -89,16 +107,12 @@ contract SecretSanta is IERC721Receiver, Ownable, ReentrancyGuard, Pausable {
 			'SecretSanta: receive not yet available'
 		);
 		require(
-			!participantsReceived[_msgSender()],
-			'SecretSanta: you have already claimed your gift'
+			participations[_msgSender()] == Participation.Sent,
+			"SecretSanta: you haven't Sent a gift"
 		);
-		require(
-			allParticipants[_msgSender()],
-			'SecretSanta: you are not a participant'
-		);
-		require(this.giftsCount() > 0, 'SecretSanta: no presents available');
+		require(receivedGifts.length > 0, 'SecretSanta: no gifts available');
 
-		Gift memory gift = availableGifts[this.giftsCount() - 1];
+		Gift memory gift = receivedGifts[receivedGifts.length - 1];
 
 		require(
 			gift.participant != _msgSender(),
@@ -111,9 +125,9 @@ contract SecretSanta is IERC721Receiver, Ownable, ReentrancyGuard, Pausable {
 			gift.itemId
 		);
 
-		availableGifts.pop();
+		receivedGifts.pop();
 
-		participantsReceived[_msgSender()] = true;
+		participations[_msgSender()] = Participation.Received;
 	}
 
 	/*
@@ -125,13 +139,16 @@ contract SecretSanta is IERC721Receiver, Ownable, ReentrancyGuard, Pausable {
 	/**
 	 * @dev Intended to be used when we face an issue with the regular
 	 * process of receiving a gift. Only to be used as the last resort.
+	 * @param _collection Collection address
+	 * @param _toAddress Address of the receiver
+	 * @param _tokenId Token id
 	 */
-	function transferPresent(
+	function safeTransfer(
 		address _collection,
 		address _toAddress,
-		uint256 _itemId
+		uint256 _tokenId
 	) external onlyOwner whenPaused {
-		IERC721(_collection).safeTransferFrom(address(this), _toAddress, _itemId);
+		IERC721(_collection).safeTransferFrom(address(this), _toAddress, _tokenId);
 	}
 
 	/*
@@ -141,32 +158,38 @@ contract SecretSanta is IERC721Receiver, Ownable, ReentrancyGuard, Pausable {
 	*/
 
 	/**
-	 * @dev Set the timestamp when participants can start receiving their gifts
+	 * @dev Set the timestamp when participations can start receiving their gifts
+	 * @param _receiveTimestamp Timestamp in seconds
 	 */
-	function setReceiveTimestamp(uint256 _timestamp) external onlyOwner {
-		receiveTimestamp = _timestamp;
+	function setReceiveTimestamp(uint256 _receiveTimestamp) external onlyOwner {
+		receiveTimestamp = _receiveTimestamp;
 	}
 
 	/**
-	 * @dev Add a collection to the allowedCollections
+	 * @dev Add a collection to the approvedCollections
+	 * @param _collection Collection address
 	 */
-	function setAllowedCollection(address _collection) external onlyOwner {
-		allowedCollections[_collection] = true;
+	function approveCollection(address _collection) external onlyOwner {
+		approvedCollections[_collection] = true;
 	}
 
+	/**
+	 * @dev Function to check if an address is a participant of the Secret Santa
+	 * @param _address Address to check
+	 */
 	function isParticipant(address _address) external view returns (bool) {
-		return allParticipants[_address] || false;
+		return (participations[_address] == Participation.Received ||
+			participations[_address] == Participation.Sent);
 	}
 
-	function giftsCount() external view returns (uint256) {
-		return availableGifts.length;
-	}
-
+	/**
+	 * @dev Function to return a list of all current gifts
+	 */
 	function gifts() external view returns (Gift[] memory) {
-		Gift[] memory _gifts = new Gift[](this.giftsCount());
+		Gift[] memory _gifts = new Gift[](receivedGifts.length);
 
-		for (uint256 i = 0; i < this.giftsCount(); i++) {
-			_gifts[i] = availableGifts[i];
+		for (uint256 i = 0; i < receivedGifts.length; i++) {
+			_gifts[i] = receivedGifts[i];
 		}
 
 		return _gifts;
