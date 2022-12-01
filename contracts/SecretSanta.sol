@@ -39,8 +39,12 @@ contract SecretSanta is IERC721Receiver, Ownable, ReentrancyGuard, Pausable {
 	 */
 	mapping(address => bool) public allowedCollections;
 
-	constructor(uint256 _receiveTimestamp) {
+	constructor(uint256 _receiveTimestamp, address[] memory _allowedCollections) {
 		receiveTimestamp = _receiveTimestamp;
+
+		for (uint256 i = 0; i < _allowedCollections.length; i++) {
+			allowedCollections[_allowedCollections[i]] = true;
+		}
 	}
 
 	/**
