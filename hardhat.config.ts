@@ -4,6 +4,7 @@ import '@nomicfoundation/hardhat-toolbox'
 import '@nomicfoundation/hardhat-chai-matchers'
 import '@openzeppelin/hardhat-upgrades'
 import dotenv from 'dotenv'
+import 'solidity-coverage'
 
 dotenv.config()
 

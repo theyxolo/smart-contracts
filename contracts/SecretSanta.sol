@@ -5,6 +5,7 @@ pragma solidity ^0.8.17;
 /// @author cesargdm.eth
 
 import '@openzeppelin/contracts/token/ERC721/IERC721.sol';
+import '@openzeppelin/contracts/token/ERC1155/IERC1155.sol';
 import '@openzeppelin/contracts/token/ERC721/IERC721Receiver.sol';
 
 import '@openzeppelin/contracts/access/Ownable.sol';
@@ -16,9 +17,11 @@ struct Gift {
 	address participant;
 	address collection;
 	uint256 itemId;
+	uint256 value;
 }
 
 enum Participation {
+	None,
 	Sent,
 	Received
 }
@@ -41,13 +44,40 @@ contract SecretSanta is IERC721Receiver, Ownable, ReentrancyGuard, Pausable {
 	/**
 	 * @dev Address to participation status mapping
 	 */
-	mapping(address => Participation) private participations;
+	mapping(address => Participation) public participations;
 
 	/**
 	 * @dev Better than allowlisting wallets, we allowlist collections
 	 * this can be used to make exchanges between small and large communities
 	 */
 	mapping(address => bool) public approvedCollections;
+
+	modifier onlyNotParticipants(address _from) {
+		require(
+			participations[_from] != Participation.Sent,
+			'SecretSanta: you already sent a gift'
+		);
+
+		_;
+	}
+
+	modifier onlyApprovedCollection() {
+		require(
+			approvedCollections[_msgSender()],
+			'SecretSanta: this collection is not approved'
+		);
+
+		_;
+	}
+
+	modifier onlyBeforeReceiveTimestamp() {
+		require(
+			block.timestamp <= receiveTimestamp,
+			'SecretSanta: you can no longer send a gift'
+		);
+
+		_;
+	}
 
 	constructor(
 		uint256 _receiveTimestamp,
@@ -58,6 +88,26 @@ contract SecretSanta is IERC721Receiver, Ownable, ReentrancyGuard, Pausable {
 		for (uint256 i = 0; i < _approvedCollections.length; i++) {
 			approvedCollections[_approvedCollections[i]] = true;
 		}
+	}
+
+	function onERC1155Received(
+		address,
+		address _from,
+		uint256 _tokenId,
+		uint256 _value,
+		bytes calldata
+	)
+		external
+		whenNotPaused
+		onlyBeforeReceiveTimestamp
+		onlyApprovedCollection
+		onlyNotParticipants(_from)
+		returns (bytes4)
+	{
+		receivedGifts.push(Gift(_from, _msgSender(), _tokenId, _value));
+		participations[_from] = Participation.Sent;
+
+		return this.onERC1155Received.selector;
 	}
 
 	/**
@@ -72,21 +122,15 @@ contract SecretSanta is IERC721Receiver, Ownable, ReentrancyGuard, Pausable {
 		address _from,
 		uint256 _tokenId,
 		bytes calldata
-	) external whenNotPaused returns (bytes4) {
-		require(
-			participations[_from] != Participation.Sent,
-			'SecretSanta: you already Sent a gift'
-		);
-		require(
-			block.timestamp <= receiveTimestamp,
-			'SecretSanta: you can no longer send a gift'
-		);
-		require(
-			approvedCollections[_msgSender()],
-			'SecretSanta: this collection is not allowed'
-		);
-
-		receivedGifts.push(Gift(_from, _msgSender(), _tokenId));
+	)
+		external
+		whenNotPaused
+		onlyBeforeReceiveTimestamp
+		onlyApprovedCollection
+		onlyNotParticipants(_from)
+		returns (bytes4)
+	{
+		receivedGifts.push(Gift(_from, _msgSender(), _tokenId, 0));
 		participations[_from] = Participation.Sent;
 
 		return this.onERC721Received.selector;
@@ -103,12 +147,16 @@ contract SecretSanta is IERC721Receiver, Ownable, ReentrancyGuard, Pausable {
 	 */
 	function receiveGift() external nonReentrant whenNotPaused {
 		require(
-			participations[_msgSender()] == Participation.Sent,
-			"SecretSanta: you haven't Sent a gift"
-		);
-		require(
 			block.timestamp > receiveTimestamp,
 			'SecretSanta: receive not yet available'
+		);
+		require(
+			participations[_msgSender()] != Participation.Received,
+			"SecretSanta: you've already received a gift"
+		);
+		require(
+			participations[_msgSender()] == Participation.Sent,
+			"SecretSanta: you haven't sent a gift"
 		);
 		require(receivedGifts.length > 0, 'SecretSanta: no gifts available');
 
@@ -119,15 +167,65 @@ contract SecretSanta is IERC721Receiver, Ownable, ReentrancyGuard, Pausable {
 			'SecretSanta: you cannot receive your own gift'
 		);
 
-		IERC721(gift.collection).safeTransferFrom(
-			address(this),
-			_msgSender(),
-			gift.itemId
-		);
+		if (gift.value > 0) {
+			IERC1155(gift.collection).safeTransferFrom(
+				address(this),
+				_msgSender(),
+				gift.itemId,
+				gift.value,
+				''
+			);
+		} else {
+			IERC721(gift.collection).safeTransferFrom(
+				address(this),
+				_msgSender(),
+				gift.itemId
+			);
+		}
 
 		receivedGifts.pop();
 
 		participations[_msgSender()] = Participation.Received;
+	}
+
+	/*
+
+		U T I L I T I E S
+
+	*/
+
+	/**
+	 * @dev Set the timestamp when participations can start receiving their gifts
+	 * @param _receiveTimestamp Timestamp in seconds
+	 */
+	function setReceiveTimestamp(uint256 _receiveTimestamp) external onlyOwner {
+		require(
+			_receiveTimestamp > block.timestamp,
+			'SecretSanta: receive timestamp must be in the future'
+		);
+
+		receiveTimestamp = _receiveTimestamp;
+	}
+
+	/**
+	 * @dev Add a collection to the approvedCollections
+	 * @param _collection Collection address
+	 */
+	function approveCollection(address _collection) external onlyOwner {
+		approvedCollections[_collection] = true;
+	}
+
+	/**
+	 * @dev Function to return a list of all current gifts
+	 */
+	function gifts() external view returns (Gift[] memory) {
+		Gift[] memory _gifts = new Gift[](receivedGifts.length);
+
+		for (uint256 i = 0; i < receivedGifts.length; i++) {
+			_gifts[i] = receivedGifts[i];
+		}
+
+		return _gifts;
 	}
 
 	/*
@@ -151,47 +249,34 @@ contract SecretSanta is IERC721Receiver, Ownable, ReentrancyGuard, Pausable {
 		IERC721(_collection).safeTransferFrom(address(this), _toAddress, _tokenId);
 	}
 
-	/*
-
-		U T I L I T I E S
-
-	*/
-
 	/**
-	 * @dev Set the timestamp when participations can start receiving their gifts
-	 * @param _receiveTimestamp Timestamp in seconds
-	 */
-	function setReceiveTimestamp(uint256 _receiveTimestamp) external onlyOwner {
-		receiveTimestamp = _receiveTimestamp;
-	}
-
-	/**
-	 * @dev Add a collection to the approvedCollections
+	 * @dev Intended to be used when we face an issue with the regular
+	 * process of receiving a gift. Only to be used as the last resort.
 	 * @param _collection Collection address
+	 * @param _toAddress Address of the receiver
+	 * @param _tokenId Token id
+	 * @param _value Token value
 	 */
-	function approveCollection(address _collection) external onlyOwner {
-		approvedCollections[_collection] = true;
+	function safeTransfer(
+		address _collection,
+		address _toAddress,
+		uint256 _tokenId,
+		uint256 _value
+	) external onlyOwner whenPaused {
+		IERC1155(_collection).safeTransferFrom(
+			address(this),
+			_toAddress,
+			_tokenId,
+			_value,
+			''
+		);
 	}
 
-	/**
-	 * @dev Function to check if an address is a participant of the Secret Santa
-	 * @param _address Address to check
-	 */
-	function isParticipant(address _address) external view returns (bool) {
-		return (participations[_address] == Participation.Received ||
-			participations[_address] == Participation.Sent);
+	function pause() external onlyOwner {
+		_pause();
 	}
 
-	/**
-	 * @dev Function to return a list of all current gifts
-	 */
-	function gifts() external view returns (Gift[] memory) {
-		Gift[] memory _gifts = new Gift[](receivedGifts.length);
-
-		for (uint256 i = 0; i < receivedGifts.length; i++) {
-			_gifts[i] = receivedGifts[i];
-		}
-
-		return _gifts;
+	function unpause() external onlyOwner {
+		_unpause();
 	}
 }
