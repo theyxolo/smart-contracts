@@ -12,3 +12,5 @@ artifacts
 .vscode
 
 .env*
+
+arguments.js

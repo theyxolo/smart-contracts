@@ -83,6 +83,10 @@ contract SecretSanta is IERC721Receiver, Ownable, ReentrancyGuard, Pausable {
 		uint256 _receiveTimestamp,
 		address[] memory _approvedCollections
 	) {
+		require(
+			_receiveTimestamp > block.timestamp,
+			'SecretSanta: receiveTimestamp must be in the future'
+		);
 		receiveTimestamp = _receiveTimestamp;
 
 		for (uint256 i = 0; i < _approvedCollections.length; i++) {
@@ -201,7 +205,7 @@ contract SecretSanta is IERC721Receiver, Ownable, ReentrancyGuard, Pausable {
 	function setReceiveTimestamp(uint256 _receiveTimestamp) external onlyOwner {
 		require(
 			_receiveTimestamp > block.timestamp,
-			'SecretSanta: receive timestamp must be in the future'
+			'SecretSanta: receiveTimestamp must be in the future'
 		);
 
 		receiveTimestamp = _receiveTimestamp;

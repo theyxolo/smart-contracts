@@ -25,14 +25,22 @@ const config: HardhatUserConfig = {
 		settings: {
 			optimizer: {
 				enabled: true,
-				runs: 102000,
+				runs: 200,
 			},
 		},
 	},
 	networks: {
 		hardhat: {},
+		mainnet: {
+			url: `https://mainnet.infura.io/v3/${PROJECT_ID}`,
+			accounts: [PRIVATE_KEY!],
+		},
 		goerli: {
 			url: `https://goerli.infura.io/v3/${PROJECT_ID}`,
+			accounts: [PRIVATE_KEY!],
+		},
+		polygon: {
+			url: `https://polygon-mainnet.infura.io/v3/${PROJECT_ID}`,
 			accounts: [PRIVATE_KEY!],
 		},
 		polygonMumbai: {
@@ -54,7 +62,9 @@ const config: HardhatUserConfig = {
 	},
 	etherscan: {
 		apiKey: {
+			mainnet: ETHERSCAN_API_KEY!,
 			goerli: ETHERSCAN_API_KEY!,
+			polygon: POLYGONSCAN_API_KEY!,
 			arbitrumGoerli: ARBISCAN_API_KEY!,
 			polygonMumbai: POLYGONSCAN_API_KEY!,
 			avalancheFujiTestnet: SNOWTRACE_API_KEY!,
